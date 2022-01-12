@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/fulcrum
+fulcrum.so
+fulcrum.dylib
+fulcrum.dll
+fulcrum.a
+fulcrum.lib
+fulcrum-test-*
+*.exe
+*.o
+*.obj
+*.lst

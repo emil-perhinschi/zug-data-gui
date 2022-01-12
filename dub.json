@@ -1,0 +1,13 @@
+{
+	"authors": [
+		"Emil Nicolaie Perhinschi"
+	],
+	"copyright": "Copyright © 2022, Emil Nicolaie Perhinschi",
+	"dependencies": {
+		"gtk-d": "~>3.10.0",
+		"xlsxreader": "~>1.2.3"
+	},
+	"description": "Data manipulation GUI",
+	"license": "BSL-1.0",
+	"name": "fulcrum"
+}
