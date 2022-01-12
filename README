@@ -1,0 +1,6 @@
+tool to pivot xlsx tables 
+
+why ? just because 
+
+tested only on Linux so far
+the Gtk3 code is dodgy, I don't yet know what I am doing

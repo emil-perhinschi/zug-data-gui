@@ -18,11 +18,11 @@ import gdk.Event;
 void main(string[] args) {
     
     Main.init(args);
-    FulcrumWindow w = new FulcrumWindow("Fulcrum", args);
+    ZDGWindow w = new ZDGWindow("Zug data GUI", args);
     Main.run();
 }
 
-class FulcrumWindow : MainWindow {
+class ZDGWindow : MainWindow {
     int width  = 640;
     int height = 480;
     Box main_container;

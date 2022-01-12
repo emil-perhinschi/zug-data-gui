@@ -9,5 +9,5 @@
 	},
 	"description": "Data manipulation GUI",
 	"license": "BSL-1.0",
-	"name": "fulcrum"
+	"name": "zug-data-gui"
 }
