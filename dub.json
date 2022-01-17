@@ -5,6 +5,7 @@
 	"copyright": "Copyright © 2022, Emil Nicolaie Perhinschi",
 	"dependencies": {
 		"gtk-d": "~>3.10.0",
+		"xlsxd": "~>4.0.1",
 		"xlsxreader": "~>1.2.3"
 	},
 	"description": "Data manipulation GUI",

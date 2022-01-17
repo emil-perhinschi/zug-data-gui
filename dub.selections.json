@@ -3,6 +3,7 @@
 	"versions": {
 		"dxml": "0.4.3",
 		"gtk-d": "3.10.0",
+		"xlsxd": "4.0.1",
 		"xlsxreader": "1.2.3"
 	}
 }

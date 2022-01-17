@@ -29,6 +29,8 @@ class ZDGWindow : MainWindow {
     VboxFormContainer vbox_form;
     string[] headers;
 
+    Button export_button;
+
     this(string title, string[] args) {
         super(title);
 
@@ -41,6 +43,8 @@ class ZDGWindow : MainWindow {
         Button button = new Button("Choose file", &choose_file_to_pivot);
         main_container.packStart(button, false, false, 5);
 
+        export_button = new Button("Export to file", &choose_file_and_export);
+        main_container.packEnd(export_button, false, false, 5);
         this.showAll();
 
     }
@@ -93,7 +97,161 @@ class ZDGWindow : MainWindow {
         file_chooser.hide();
     }
 
+    void choose_file_and_export(Button button) {
+        import std.file: exists;
+        import gtk.MessageDialog;
+        import gtk.FileChooserDialog;
+
+        string[] buttons_labels = ["Save", "Cancel"];
+        ResponseType[] response_types = [ResponseType.OK, ResponseType.CANCEL];
+        auto file_chooser = new FileChooserDialog( 
+            "Pick a file to export to", 
+            this, // parent window
+            FileChooserAction.SAVE, 
+            buttons_labels,
+            response_types
+        );
+        file_chooser.setSelectMultiple(false);
+        ResponseType response = cast(ResponseType) file_chooser.run();
+
+        if ( response == ResponseType.OK ) {
+            writeln("export to file ResponseType.OK");
+            string file_path = file_chooser.getFilename();
+            auto data = this.get_pivoted_data();
+            export_to_csv(file_path, data);            
+        } else {
+           writeln("export to file ResponseType NOT OK");
+        }
+
+        file_chooser.hide();
+    }
+
+    string[][] get_pivoted_data() {
+        import std.algorithm: map, canFind, sort, SwapStrategy;
+        import std.typecons: Tuple;
+        import std.array: array, join;
+
+        string row_header = this.vbox_form.columns_in_file[this.vbox_form.combo_row.getActive()];
+        string data_header = this.vbox_form.data_columns[this.vbox_form.combo_data.getActive()];
+        string[] columns_headers = this.vbox_form.combo_columns.get_active().map!(a => this.vbox_form.columns_to_merge[a]).array();
+        string[][string][string] lookup_table;
+        int[string] lookup_first_column;
+        int[string] lookup_headers;
+        string[][] data = read_xlsx_file(this.vbox_form.file_path);
+        
+        string[] headers = this.vbox_form.columns_in_file;
+        size_t row_header_index = 0;
+        size_t data_header_index = 0;
+        size_t[] column_header_indices;
+        for (size_t i = 0; i < headers.length; i++) {
+             if (headers[i] == row_header) { 
+                row_header_index = i;
+            }
+            
+            if (headers[i] == data_header) { 
+                data_header_index = i;
+            }
+
+            if (columns_headers.canFind(headers[i])) {
+                column_header_indices ~= i;
+            }
+        }
+        
+        writeln("row_header_index: ", row_header, " ", row_header_index, " data_header_index: ", data_header, " ", data_header_index);
+        int row_no = 0;
+        foreach (string[] row; data) {
+            import std.string: join;
+            import std.array: array;
+            import std.datetime: Date, Duration, dur;
+            import std.conv: to;
+
+            auto msexcel_base_date = Date(1899, 12, 30);
+
+            string column_values_merged = column_header_indices.map!(a => row[a]).array().join(", ");
+            writeln(row_no, " ", row[data_header_index]);
+            int excel_date = row[data_header_index].to!float.to!int;
+            Duration excel_duration = dur!"days"(excel_date);
+            lookup_first_column[row[row_header_index]] = 1;
+            lookup_headers[column_values_merged] = 1;
+            lookup_table[row[row_header_index]][column_values_merged] ~= (msexcel_base_date + excel_duration).toISOExtString();
+            row_no++;
+        }
+        
+        string[] students = lookup_first_column.keys.sort!("b > a").array();
+        string[] classes = lookup_headers.keys.sort!("b > a").array();
+        string[][] result;
+        string[] first_row = ["Cursanti"];
+        first_row ~= classes;
+        result ~= first_row;
+        foreach (student; students) {
+            string[] row = [student];
+
+            foreach (c; classes) {
+                if (c in lookup_table[student] ) {
+                    row ~=  lookup_table[student][c].join("\n");
+                } else {
+                    row ~= "";
+                }
+            }
+            result ~= row;
+        }
+
+        return result;
+    }
 }
+
+string[][] read_xlsx_file(string file_path) {
+    import std.algorithm: map;
+    import std.array: array;
+    import xlsxreader;
+
+    SheetNameId[] sheets = file_path.sheetNames();
+    auto sheet = file_path.readSheet(sheets[0].name);
+    auto table = sheet.table;
+    string[] headers = table[0].map!(a => a.convertToString).array();
+    string[][] data;
+    for (size_t i = 1; i < table.length; i++) {
+        data ~= table[i].map!(a => a.convertToString).array();
+    }
+    return data;
+}
+
+void export_to_csv(string file_path, string[][] data) {
+    import std.array: join, array;
+    import std.algorithm: map;
+    import std.file: write;
+
+    string separator = `|`;
+    string[] result;
+    foreach (row; data) {
+        result ~= row.map!(a => `"` ~ a ~ `"`).array.join(separator);
+    }
+
+    write(file_path, result.join("\n"));
+}
+
+
+// void export_to_xlsx(string file_path, string[][] data) {
+//     import libxlsxd;
+//     writeln("exporting to xlsx: ", file_path, "; row count: ", data.length, "; row lenght: ", data[0].length);
+//     auto workbook  = new Workbook(file_path);
+//     auto worksheet = workbook.addWorksheet("Pivoted data");
+//     auto format = workbook.addFormat();
+//     format.setTextWrap();
+//     auto headers = data[0];
+//     ushort first_column = 0;
+//     ushort last_column = cast(ushort) headers.length;
+//     worksheet.setColumn(first_column, last_column, 30, format);
+
+//     for (uint y = 1; y < data.length; y++ ) {
+//         for (ushort x = 0; x < data[0].length; x++) {
+//             writeln(y, " ", x);
+//             worksheet.writeString(y, x, data[y][x]);
+//         }
+//     }
+//     lxw_error result = workbook.close();
+//     writeln("exported to xlsx: ", file_path, "; row count: ", data.length, "; row lenght: ", data[0].length, "; result: ", lxw_strerror(result));
+// }
 
 string[] get_xlsx_headers(string file_path) {
     import std.algorithm: map;
@@ -103,7 +261,7 @@ string[] get_xlsx_headers(string file_path) {
     SheetNameId[] sheets = file_path.sheetNames();
     auto sheet = file_path.readSheet(sheets[0].name);
     string[] headers = sheet.table[0].map!(a => a.convertToString).array();
-    
+
     return headers;
 }
 
@@ -117,7 +275,7 @@ class VboxFormContainer: Box {
     TreeIter columns_to_merge_iter;
     ListStore combo_columns_store;
     Box hbox_columns;
-    Button export_button;
+
     string file_path;
     bool data_is_date = true; // if the data columns contains a date, i.e. 2021-10-21
 
@@ -163,101 +321,7 @@ class VboxFormContainer: Box {
 
         hbox_columns.packStart(this.combo_columns, false, false, 5);
 
-        export_button = new Button("Export to file", &export_to_csv);
-        this.export_button.setSensitive(false);
-        this.packStart(export_button, false, false, 5);
-    }
-
-    void export_to_csv(Button button) {
-        import std.algorithm: map, canFind, sort, SwapStrategy;
-        import std.typecons: Tuple;
-        import std.array: array, join;
-
-        string separator = "|";
-
-        string row_header = this.columns_in_file[this.combo_row.getActive()];
-        string data_header = this.data_columns[this.combo_data.getActive()];
-        string[] columns_headers = this.combo_columns.get_active().map!(a => this.columns_to_merge[a]).array();
-        string[][string][string] lookup_table;
-        int[string] lookup_first_column;
-        int[string] lookup_headers;
-        string[][] data = read_xlsx_file(this.file_path);
-        
-        string[] headers = this.columns_in_file;
-        size_t row_header_index = 0;
-        size_t data_header_index = 0;
-        size_t[] column_header_indices;
-        for (size_t i = 0; i < headers.length; i++) {
-             if (headers[i] == row_header) { 
-                row_header_index = i;
-            }
-            
-            if (headers[i] == data_header) { 
-                data_header_index = i;
-            }
-
-            if (columns_headers.canFind(headers[i])) {
-                column_header_indices ~= i;
-            }
-        }
-        
-        writeln("row_header_index: ", row_header, " ", row_header_index, " data_header_index: ", data_header, " ", data_header_index);
-        int row_no = 0;
-        foreach (string[] row; data) {
-            import std.string: join;
-            import std.array: array;
-            import std.datetime: Date, Duration, dur;
-            import std.conv: to;
-
-            auto msexcel_base_date = Date(1899, 12, 30);
-
-            string column_values_merged = column_header_indices.map!(a => row[a]).array().join(", ");
-            writeln(row_no, " ", row[data_header_index]);
-            int excel_date = row[data_header_index].to!float.to!int;
-            Duration excel_duration = dur!"days"(excel_date);
-            lookup_first_column[row[row_header_index]] = 1;
-            lookup_headers[column_values_merged] = 1;
-            lookup_table[row[row_header_index]][column_values_merged] ~= (msexcel_base_date + excel_duration).toISOExtString();
-            row_no++;
-        }
-        
-        string[] students = lookup_first_column.keys.sort!("b > a").array();
-        string[] classes = lookup_headers.keys.sort!("b > a").array();
-        string[] result;
-        string[] first_row = ["Cursanti"];
-        first_row ~= classes;
-        result ~= first_row.join(separator);
-        foreach (student; students) {
-            string[] row = [student];
-
-            foreach (c; classes) {
-                if (c in lookup_table[student] ) {
-                    row ~=  lookup_table[student][c].join(", ");
-                } else {
-                    row ~= "";
-                }
-            }
-            result ~= row.join(separator);
-        }
-
-        import std.file: write;
-        write("result.csv", result.join("\n"));
-    }
-
-    string[][] read_xlsx_file(string file_path) {
-        import std.algorithm: map;
-        import std.array: array;
-        import xlsxreader;
-
-        SheetNameId[] sheets = file_path.sheetNames();
-        auto sheet = file_path.readSheet(sheets[0].name);
-        auto table = sheet.table;
-        string[] headers = table[0].map!(a => a.convertToString).array();
-        string[][] data;
-        for (size_t i = 1; i < table.length; i++) {
-            data ~= table[i].map!(a => a.convertToString).array();
-        }
-        return data;
+        ZDGWindow main_window = cast(ZDGWindow) this.getToplevel();
     }
 
     void set_pivot_row() {
@@ -284,7 +348,7 @@ class VboxFormContainer: Box {
         foreach (size_t i; 0..this.data_columns.length) {
             this.combo_data.appendText(this.data_columns[i]);
         }
-        this.export_button.setSensitive(false);
+        // this.export_button.setSensitive(false);
     }
 
     void set_combo_columns_list() {
@@ -306,7 +370,7 @@ class VboxFormContainer: Box {
         model.clear();
         model.column_names = this.columns_to_merge;
         model.set_values();
-        this.export_button.setSensitive(true);
+        // this.export_button.setSensitive(true);
     }
 }
 
