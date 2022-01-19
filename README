@@ -1,6 +1,7 @@
 tool to pivot xlsx tables 
 
-why ? just because 
+why ? because I can't be bothered finding out how to use concatenation in Excel pivot tables
 
-tested only on Linux so far
+works on Linux and Windows 10, though building on Windows takes a bit of time
+
 the Gtk3 code is dodgy, I don't yet know what I am doing
