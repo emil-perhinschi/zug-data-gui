@@ -176,7 +176,8 @@ class ZDGWindow : MainWindow {
             lookup_table[row[row_header_index]][column_values_merged] ~= (msexcel_base_date + excel_duration).toISOExtString();
             row_no++;
         }
-        
+       writeln("......................................................");
+
         string[] students = lookup_first_column.keys.sort!("b > a").array();
         string[] classes = lookup_headers.keys.sort!("b > a").array();
         string[][] result;
@@ -280,6 +281,7 @@ class VboxFormContainer: Box {
     bool data_is_date = true; // if the data columns contains a date, i.e. 2021-10-21
 
     this(string path, string[] column_names) {
+        import gtk.ScrolledWindow;
         super(Orientation.VERTICAL, 5);
 
         this.file_path = path;
@@ -317,11 +319,12 @@ class VboxFormContainer: Box {
         hbox_columns.packStart(label_columns, false, false, 5);
         this.packStart(hbox_columns, false, false, 5);
 
+	auto scrolled_columns_window = new ScrolledWindow();
+        scrolled_columns_window.setMinContentHeight(280);
+        hbox_columns.packStart(scrolled_columns_window, true, true, 5);
         this.combo_columns = new ColumnsTreeView(this.columns_to_merge);
-
-        hbox_columns.packStart(this.combo_columns, false, false, 5);
-
-        ZDGWindow main_window = cast(ZDGWindow) this.getToplevel();
+//        hbox_columns.packStart(this.combo_columns, false, false, 5);
+	scrolled_columns_window.add(this.combo_columns);
     }
 
     void set_pivot_row() {
@@ -396,6 +399,9 @@ class ColumnsTreeView: TreeView {
 
     this(string[] columns_to_show) {
         super();
+	
+	this.setHeadersVisible(false);
+
         list_store = new ColumnsListStore(columns_to_show);
         this.setModel(list_store);
 
@@ -427,9 +433,10 @@ class ColumnsListStore: ListStore {
 
     this(string[] columns_to_show) {
         super([GType.STRING]);
-        if (columns_to_show.length > 0) {
+        // if (columns_to_show.length > 0) {
             this.column_names = columns_to_show;
-        }
+        // }
+
 
         this.set_values();
     }
