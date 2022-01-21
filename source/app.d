@@ -171,9 +171,10 @@ class ZDGWindow : MainWindow {
             writeln(row_no, " ", row[data_header_index]);
             int excel_date = row[data_header_index].to!float.to!int;
             Duration excel_duration = dur!"days"(excel_date);
-            lookup_first_column[row[row_header_index]] = 1;
+            string first_column_value = normalize_string( row[row_header_index] );
+            lookup_first_column[ first_column_value ] = 1;
             lookup_headers[column_values_merged] = 1;
-            lookup_table[row[row_header_index]][column_values_merged] ~= (msexcel_base_date + excel_duration).toISOExtString();
+            lookup_table[first_column_value][column_values_merged] ~= (msexcel_base_date + excel_duration).toISOExtString();
             row_no++;
         }
        writeln("......................................................");
@@ -199,6 +200,28 @@ class ZDGWindow : MainWindow {
 
         return result;
     }
+}
+
+string normalize_string(string in_value) {
+    import std.algorithm: map;
+    import std.string: replaceInPlace, strip, capitalize, split;
+    import std.regex: replaceAll, regex;
+    import std.array: join;
+    
+    // replace dashes long and short with a single space
+    string no_dashes = in_value.replaceAll(regex(`\s*\p{Pd}\s*`), " ");
+    
+    // replace multiple spaces with a single space
+    string single_spaces = no_dashes.replaceAll(regex(`\s\s+`), " ");
+    // trim spaces at the beginning and end
+    string trimmed = single_spaces.strip();
+
+    // capitalize first letter in each part of the string and make the rest lowercase
+    string capitalized = trimmed.split(" ")
+        .map!(a => capitalize(a))
+        .join(" ");
+
+    return capitalized;
 }
 
 string[][] read_xlsx_file(string file_path) {
